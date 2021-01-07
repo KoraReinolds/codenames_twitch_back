@@ -16,9 +16,12 @@ module.exports = function(io) {
 
     extractToken(socket.request.headers.authorization)
     Users.registerUser(user)
+
     socket.on('disconnect', () => {
       console.log('disconect ')
     })
+    
+    socket.emit('user', user)
 
   })
 
@@ -60,10 +63,25 @@ module.exports = function(io) {
 
   }))
   
+  router.use((req, res, next) => {
+
+    if (user.role === 'broadcater') res.status(401).send()
+    next()
+
+  }),
+
   router.post('/start-app', errorHandleWrapper(async (req, res) => {
 
-    const users = await Users.getUsersInChannel(user.channel_id)
-    console.log(users)
+    // define collor for each user
+    const users = await Users.startApp(user.channel_id)
+    users.forEach(async (user, index) => {
+      const { color } = await Users.findOneAndUpdate({
+        opaque_user_id: user.opaque_user_id
+      }, {
+        color: index % 2 ? 'red' : 'blue'
+      })
+      io.emit(`${user.opaque_user_id}-color`, color)
+    })
     res.send(users)
 
   }))

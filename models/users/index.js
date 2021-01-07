@@ -27,10 +27,17 @@ module.exports = function(io) {
       type: Object,
       required: true,
     },
+    active: {
+      type: Boolean,
+      default: true,
+    },
+    color: {
+      type: String,
+    },
   })
   
 
-  schema.statics.getUsersInChannel = async function(channel_id) {
+  schema.statics.getUsersInChannel = async (channel_id) => {
 
     const rooms = await Rooms.find({
       channel_id,
@@ -40,12 +47,12 @@ module.exports = function(io) {
 
   },
 
-  schema.statics.registerUser = async function({
+  schema.statics.registerUser = async ({
     opaque_user_id,
     role,
     channel_id,
     pubsub_perms,
-  }) {
+  }) => {
     
     let room = await Rooms.findOne({
       channel_id,
@@ -80,6 +87,17 @@ module.exports = function(io) {
 
     }
     
+  }
+
+  schema.statics.startApp = async (channel_id) => {
+
+    const users = await Users.find({
+      channel_id,
+      active: true,
+    })
+    console.log(users)
+    return users
+
   }
 
   const Users = mongo.model('Users', schema)
