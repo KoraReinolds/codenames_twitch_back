@@ -11,6 +11,14 @@ module.exports = function(io) {
     },
   })
 
+  schema.statics.removeRoom = async (channel_id) => {
+
+    return await Rooms.findOneAndDelete({
+      channel_id: channel_id,
+    })
+
+  }
+  
   const Rooms = mongo.model('Rooms', schema)
 
   return Rooms

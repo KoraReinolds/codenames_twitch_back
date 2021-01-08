@@ -10,18 +10,23 @@ module.exports = function(io) {
   const Users = require('../models/users')(io)
   const ownerId = process.env.OWNER_ID
 
-  let user
+  io.on('connection', async socket => {
 
-  io.on('connection', socket => {
-
-    extractToken(socket.request.headers.authorization)
-    Users.registerUser(user)
+    const userInfo = extractToken(socket.request.headers.authorization)
+    const registredUser = await Users.registerUser(userInfo)
+    console.log('conect ', registredUser.role, registredUser.color)
 
     socket.on('disconnect', () => {
-      console.log('disconect ')
+      console.log('disconect')
+      if (userInfo.role === 'broadcaster') {
+        Rooms.removeRoom(userInfo.channel_id)
+        Users.removeUsersFromRoom(userInfo.channel_id)
+      } else {
+        Users.disableUserFromRoom(userInfo)
+      }
     })
     
-    socket.emit('user', user)
+    socket.emit('user', registredUser)
 
   })
 
@@ -34,7 +39,7 @@ module.exports = function(io) {
 
   function extractToken(token) {
     const prefix = 'Bearer '
-    user = jsonwebtoken.verify(
+    return jsonwebtoken.verify(
       token.substring(prefix.length),
       secret,
       { algorithms: ['HS256'] },
@@ -57,15 +62,15 @@ module.exports = function(io) {
   router.use(errorHandleWrapper(async (req, res, next) => {
 
     if (req.headers.authorization) {
-      extractToken(req.headers.authorization)
+      req.user = extractToken(req.headers.authorization)
     }
     next()
 
   }))
-  
+
   router.use((req, res, next) => {
 
-    if (user.role === 'broadcater') res.status(401).send()
+    if (req.user.role === 'broadcater') res.status(401).send()
     next()
 
   }),
@@ -73,16 +78,27 @@ module.exports = function(io) {
   router.post('/start-app', errorHandleWrapper(async (req, res) => {
 
     // define collor for each user
-    const users = await Users.startApp(user.channel_id)
-    users.forEach(async (user, index) => {
-      const { color } = await Users.findOneAndUpdate({
+    const users = await Users.getActiveUsers(req.user.channel_id)
+
+    const promises = users.map(async (user, index) => {
+
+      const color = index % 2 ? 'red' : 'blue'
+      const updatedUser = await Users.findOneAndUpdate({
         opaque_user_id: user.opaque_user_id
       }, {
-        color: index % 2 ? 'red' : 'blue'
+        color
       })
-      io.emit(`${user.opaque_user_id}-color`, color)
+      console.log(updatedUser)
+      // console.log(await Users.findOne({
+      //   opaque_user_id: user.opaque_user_id
+      // }))
+      io.emit(`${updatedUser.opaque_user_id}-color`, color)
+
     })
-    res.send(users)
+
+    await Promise.all(promises)
+
+    res.send({ type: 'ok' })
 
   }))
 

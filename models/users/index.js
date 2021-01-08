@@ -66,9 +66,11 @@ module.exports = function(io) {
       
     }
      
-    let newUser = await Users.findOne({
+    let newUser = await Users.findOneAndUpdate({
       channel_id,
       opaque_user_id,
+    }, {
+      active: true,
     })
 
     if (!newUser) {
@@ -81,22 +83,35 @@ module.exports = function(io) {
         channel_ref: room._id,
       })
 
-    } else {
-
-      console.log('user exist')
-
     }
+
+    return newUser
     
   }
 
-  schema.statics.startApp = async (channel_id) => {
+  schema.statics.getActiveUsers = async (channel_id) => {
 
-    const users = await Users.find({
+    return await Users.find({
       channel_id,
       active: true,
     })
-    console.log(users)
-    return users
+
+  }
+
+  schema.statics.disableUserFromRoom = async (user) => {
+
+    return await Users.findOneAndUpdate({
+      opaque_user_id: user.opaque_user_id,
+      channel_id: user.channel_id,
+    }, {
+      active: false,
+    })
+
+  }
+
+  schema.statics.removeUsersFromRoom = async (channel_id) => {
+
+    return await Users.deleteMany({ channel_id })
 
   }
 
