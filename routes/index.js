@@ -8,7 +8,17 @@ module.exports = function(io) {
   const request = require('request');
   const Rooms = require('../models/rooms')(io)
   const Users = require('../models/users')(io)
+  const Game = require('../models/game')(io)
   const ownerId = process.env.OWNER_ID
+
+  async function init() {
+    const listEmpty = !(await Game.countWords())
+    if (listEmpty) {
+      Game.insertWords([ 'дверка', 'темница', 'латы', 'холст', 'лиска', 'кариатида', 'лента', 'барыш', 'мускулатура', 'алкоголь', 'клюшка', 'земляника', 'коррозия', 'патефон', 'мост', 'сталь', 'ванна', 'луна', 'увал', 'автомодель', 'айва', 'тюльпан', 'шампунь', 'седло', 'тир' ])
+    }
+  }
+
+  init()
 
   io.on('connection', async socket => {
 
@@ -80,7 +90,7 @@ module.exports = function(io) {
     // define collor for each user
     const users = await Users.getActiveUsers(req.user.channel_id)
 
-    const promises = users.map(async (user, index) => {
+    const usersColor = users.map(async (user, index) => {
 
       const color = index % 2 ? 'red' : 'blue'
       const updatedUser = await Users.findOneAndUpdate({
@@ -88,15 +98,16 @@ module.exports = function(io) {
       }, {
         color
       })
-      console.log(updatedUser)
-      // console.log(await Users.findOne({
-      //   opaque_user_id: user.opaque_user_id
-      // }))
       io.emit(`${updatedUser.opaque_user_id}-color`, color)
 
     })
 
-    await Promise.all(promises)
+    await Promise.all(usersColor)
+
+    // send random word list
+    const wordList = await Game.generateWordList()
+    await Rooms.setWordList(req.user.channel_id, wordList)
+    io.emit(`${req.user.channel_id}-list`, wordList)
 
     res.send({ type: 'ok' })
 

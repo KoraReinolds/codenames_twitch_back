@@ -85,6 +85,8 @@ module.exports = function(io) {
 
     }
 
+    io.emit(`${newUser.channel_id}-list`, room.wordList)
+
     return newUser
     
   }
