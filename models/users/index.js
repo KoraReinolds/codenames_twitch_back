@@ -31,6 +31,10 @@ module.exports = function(io) {
       type: Boolean,
       default: true,
     },
+    team_leader: {
+      type: Boolean,
+      default: false,
+    },
     color: {
       type: String,
     },
@@ -85,8 +89,6 @@ module.exports = function(io) {
 
     }
 
-    io.emit(`${newUser.channel_id}-list`, room.wordList)
-
     return newUser
     
   }
@@ -97,6 +99,39 @@ module.exports = function(io) {
       channel_id,
       active: true,
     })
+
+  }
+
+  schema.statics.getTeamLeaders = async (channel_id) => {
+
+    const broadcater = await Users.findOneAndUpdate({
+      channel_id,
+      role: 'broadcaster',
+    }, {
+      team_leader: true,
+    })
+    
+    const enemyColor = broadcater.color === 'red' ? 'blue' : 'red'
+    // console.log('broadcater ', broadcater)
+    
+    const secondLeader = (await Users.aggregate(
+      [
+        { $match: { color: enemyColor } },
+        { $sample: { size: 1 } },
+      ]
+    ))[0]
+      
+    // console.log('secondLeader', secondLeader.opaque_user_id)
+
+    return [
+      broadcater,
+      await Users.findOneAndUpdate({
+        channel_id,
+        opaque_user_id: secondLeader.opaque_user_id,
+      }, {
+        team_leader: true,
+      })
+    ]
 
   }
 
