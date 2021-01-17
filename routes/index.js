@@ -17,17 +17,15 @@ module.exports = function(io) {
     }
   }
 
-  function setColoredWordList(room, user) {
+  function sendColoredWordList(room, user) {
 
-    if (user.team_leader) {
-
-      io.emit(`${user.opaque_user_id}-color-list`, {
+    io.emit(`${user.opaque_user_id}`, {
+      wordColorList: {
         blackWordList: room.blackWordList,
         redWordList: room.redWordList,
         blueWordList: room.blueWordList,
-      })  
-
-    }
+      }
+    })  
 
   }
 
@@ -39,11 +37,13 @@ module.exports = function(io) {
     const registredUser = await Users.registerUser(userInfo)
     const room = await Rooms.getRoomById(userInfo.channel_id)
     if (room.wordList) {
-      io.emit(`${userInfo.opaque_user_id}-list`, room.wordList)
+      io.emit(`${userInfo.opaque_user_id}`, { wordList: room.wordList })
     }
-    setColoredWordList(room, registredUser)
+    if (registredUser.team_leader) {
+      sendColoredWordList(room, registredUser)
+    }
 
-    console.log('conect ', userInfo.opaque_user_id, registredUser)
+    // console.log('conect ', userInfo)
 
     socket.on('disconnect', () => {
       console.log('disconect')
@@ -55,7 +55,7 @@ module.exports = function(io) {
       }
     })
     
-    socket.emit('user', registredUser)
+    socket.emit(`${userInfo.opaque_user_id}`, { user: registredUser })
 
   })
 
@@ -110,7 +110,7 @@ module.exports = function(io) {
       }, {
         color
       })
-      io.emit(`${updatedUser.opaque_user_id}-color`, color)
+      io.emit(`${updatedUser.opaque_user_id}`, { teamColor: color })
 
     })
 
@@ -124,9 +124,9 @@ module.exports = function(io) {
     await Rooms.setWordList(req.user.channel_id, wordList)
     const room = await Rooms.getRoomById(req.user.channel_id)
 
-    io.emit(`${req.user.channel_id}-list`, wordList)
-    setColoredWordList(room, firstLeader)
-    setColoredWordList(room, secondLeader)
+    io.emit(`${req.user.channel_id}`, { wordList })
+    sendColoredWordList(room, firstLeader)
+    sendColoredWordList(room, secondLeader)
 
     res.send({ type: 'ok' })
 
