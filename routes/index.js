@@ -17,15 +17,33 @@ module.exports = function(io) {
     }
   }
 
-  function sendColoredWordList(room, user) {
+  async function sendUserInformation({ opaque_user_id }) {
 
-    io.emit(`${user.opaque_user_id}`, {
-      wordColorList: {
-        blackWordList: room.blackWordList,
-        redWordList: room.redWordList,
-        blueWordList: room.blueWordList,
-      }
-    })  
+    const data = {}
+
+    await Users.
+      findOne({ opaque_user_id }).
+      populate('channel_ref').
+      exec(function (err, user) {
+
+        const room = user.channel_ref
+
+        if (room.wordList) {
+          data.wordList = room.wordList
+        }
+        if (user.team_leader) {
+          data.wordColorList = {
+            blackWordList: room.blackWordList,
+            redWordList: room.redWordList,
+            blueWordList: room.blueWordList,
+          }
+        }
+        data.user = user
+
+        io.emit(`${opaque_user_id}`, data)
+
+      })
+  
 
   }
 
@@ -35,13 +53,7 @@ module.exports = function(io) {
 
     const userInfo = extractToken(socket.request.headers.authorization)
     const registredUser = await Users.registerUser(userInfo)
-    const room = await Rooms.getRoomById(userInfo.channel_id)
-    if (room.wordList) {
-      io.emit(`${userInfo.opaque_user_id}`, { wordList: room.wordList })
-    }
-    if (registredUser.team_leader) {
-      sendColoredWordList(room, registredUser)
-    }
+    sendUserInformation(registredUser)
 
     // console.log('conect ', userInfo)
 
@@ -55,8 +67,6 @@ module.exports = function(io) {
       }
     })
     
-    socket.emit(`${userInfo.opaque_user_id}`, { user: registredUser })
-
   })
 
   const errorHandleWrapper = function(callback) {
@@ -124,9 +134,13 @@ module.exports = function(io) {
     await Rooms.setWordList(req.user.channel_id, wordList)
     const room = await Rooms.getRoomById(req.user.channel_id)
 
-    io.emit(`${req.user.channel_id}`, { wordList })
-    sendColoredWordList(room, firstLeader)
-    sendColoredWordList(room, secondLeader)
+    io.emit(`${req.user.channel_id}`, {
+      curentTurnColor: room.curentTurnColor,
+      gameInfo: room.gameStatus,
+      wordList,
+    })
+    sendUserInformation(firstLeader)
+    sendUserInformation(secondLeader)
 
     res.send({ type: 'ok' })
 

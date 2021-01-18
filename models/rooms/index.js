@@ -25,6 +25,18 @@ module.exports = function(io) {
       type: Array,
       default: null,
     },
+    curentTurnColor: {
+      type: String,
+      default: null,
+    },
+    gameStatus: {
+      type: String,
+      default: '',
+    },
+    history: {
+      type: Array,
+      default: [],
+    }
   })
 
   schema.statics.getRoomById = async (channel_id) => {
@@ -45,12 +57,23 @@ module.exports = function(io) {
 
   schema.statics.setWordList = async (channel_id, wordList) => {
 
+    const curentTurnColor = Math.round(Math.random()) ? 'red' : 'blue'
+    const addRed = curentTurnColor === 'red'
+    const addBlue = curentTurnColor === 'blue'
+    const blackWordList = [wordList[0]]
+    const redWordList = wordList.slice(1, 6 + addRed)
+    const blueWordList = wordList.slice(7, 12 + addBlue)
+
+    console.log(redWordList)
+
     return await Rooms.findOneAndUpdate({
       channel_id,
     }, {
-      blackWordList: [wordList[0]],
-      redWordList: wordList.slice(1, 6),
-      blueWordList: wordList.slice(6, 11),
+      gameStatus: `Ожидание слова от каптана ${curentTurnColor === 'red' ? 'красной' : 'синей'} команды`,
+      curentTurnColor,
+      blackWordList,
+      redWordList,
+      blueWordList,
       wordList: wordList.sort(() => Math.random() - 0.5),
     })
 

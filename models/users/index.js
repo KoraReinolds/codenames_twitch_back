@@ -11,6 +11,9 @@ module.exports = function(io) {
       type: String,
       required: true,
     },
+    user_id: {
+      type: String,
+    },
     role: {
       type: String,
       required: true,
