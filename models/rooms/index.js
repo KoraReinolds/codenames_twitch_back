@@ -36,8 +36,40 @@ module.exports = function(io) {
     history: {
       type: Array,
       default: [],
+    },
+    allowChooseCards: {
+      type: Boolean,
+      default: false,
     }
   })
+
+  schema.statics.toggleTurn = async (channel_id, turnColor) => {
+
+    return await Rooms.findOneAndUpdate({
+      channel_id,
+    }, {
+      curentTurnColor: turnColor,
+      gameStatus: `Ожидание слова от каптана ${turnColor === 'red' ? 'красной' : 'синей'} команды`,
+      allowChooseCards: false,
+    }, {
+      new: true,
+    })
+   
+  }
+
+  schema.statics.addToHistory = async ({ channel_id, ...historyInfo }) => {
+
+    return await Rooms.findOneAndUpdate({
+      channel_id,
+    }, {
+      $push: { history: historyInfo },
+      allowChooseCards: true,
+      gameStatus: `Ожидается выбор карты от игроков`,
+    }, {
+      new: true,
+    })
+   
+  }
 
   schema.statics.getRoomById = async (channel_id) => {
 

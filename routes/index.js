@@ -107,6 +107,37 @@ module.exports = function(io) {
 
   })),
 
+  router.post('/send-word', errorHandleWrapper(async (req, res) => {
+
+    const newRoom = await Rooms.addToHistory({
+      channel_id: req.user.channel_id,
+      ...req.body
+    })
+
+    io.emit(`${req.user.channel_id}`, {
+      history: newRoom.history,
+      curentTurnColor: newRoom.curentTurnColor,
+      gameInfo: newRoom.gameStatus,
+      allowChooseCards: newRoom.allowChooseCards,
+    })
+
+    setTimeout(async () => {
+      const turnColor = req.body.color === 'red' ? 'blue' : 'red'
+      const room = await Rooms.toggleTurn(req.user.channel_id, turnColor)
+      console.log(room)
+
+      io.emit(`${req.user.channel_id}`, {
+        curentTurnColor: room.curentTurnColor,
+        gameInfo: room.gameStatus,
+        allowChooseCards: room.allowChooseCards,
+      })
+
+    }, 1000)
+
+    res.send()
+
+  })),
+
   router.post('/start-app', errorHandleWrapper(async (req, res) => {
 
     // define collor for each user
