@@ -8,6 +8,7 @@ module.exports = function(io) {
   const Rooms = require('../models/rooms')(io)
   const Users = require('../models/users')(io)
   const Game = require('../models/game')(io)
+  const Results = require('../models/results')(io)
   const TwitchAPI = require('../api')
 
   async function init() {
@@ -55,10 +56,9 @@ module.exports = function(io) {
     const registredUser = await Users.registerUser(userInfo)
     sendUserInformation(registredUser)
 
-    // console.log('conect ', userInfo)
 
     socket.on('disconnect', () => {
-      console.log('disconect')
+      // console.log('disconect')
       if (userInfo.role === 'broadcaster') {
         Rooms.removeRoom(userInfo.channel_id)
         Users.removeUsersFromRoom(userInfo.channel_id)
@@ -107,6 +107,18 @@ module.exports = function(io) {
 
   })),
 
+  router.post('/register-answer', errorHandleWrapper(async (req, res) => {
+
+    await Results.registerAnswer({
+      channel_id: req.user.channel_id,
+      opaque_user_id: req.user.opaque_user_id,
+      word: req.body.word,
+    })
+
+    res.send({ type: 'ok' })
+
+  })),
+
   router.post('/send-word', errorHandleWrapper(async (req, res) => {
 
     const newRoom = await Rooms.addToHistory({
@@ -114,27 +126,34 @@ module.exports = function(io) {
       ...req.body
     })
 
+    const timer = 5000
+    await Results.clearResults(req.user.channel_id)
+
     io.emit(`${req.user.channel_id}`, {
+      results: [],
       history: newRoom.history,
       curentTurnColor: newRoom.curentTurnColor,
       gameInfo: newRoom.gameStatus,
       allowChooseCards: newRoom.allowChooseCards,
+      timer,
     })
 
     setTimeout(async () => {
       const turnColor = req.body.color === 'red' ? 'blue' : 'red'
       const room = await Rooms.toggleTurn(req.user.channel_id, turnColor)
-      console.log(room)
+
+      const results = await Results.getResults(req.user.channel_id)
 
       io.emit(`${req.user.channel_id}`, {
+        results,
         curentTurnColor: room.curentTurnColor,
         gameInfo: room.gameStatus,
         allowChooseCards: room.allowChooseCards,
       })
 
-    }, 1000)
+    }, timer)
 
-    res.send()
+    res.send({ type: 'ok' })
 
   })),
 
@@ -162,8 +181,8 @@ module.exports = function(io) {
     
     // send random word list
     const wordList = await Game.generateWordList()
-    await Rooms.setWordList(req.user.channel_id, wordList)
-    const room = await Rooms.getRoomById(req.user.channel_id)
+    const room = await Rooms.setWordList(req.user.channel_id, wordList)
+    // await Rooms.refreshResults(req.user.channel_id)
 
     io.emit(`${req.user.channel_id}`, {
       curentTurnColor: room.curentTurnColor,

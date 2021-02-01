@@ -1,7 +1,6 @@
 module.exports = function(io) {
 
   const mongo = require('../../db/mongo')
-  const Users = mongo.models.Users
   
   let schema = new mongo.Schema({
     channel_id: {
@@ -40,7 +39,7 @@ module.exports = function(io) {
     allowChooseCards: {
       type: Boolean,
       default: false,
-    }
+    },
   })
 
   schema.statics.toggleTurn = async (channel_id, turnColor) => {
@@ -95,8 +94,7 @@ module.exports = function(io) {
     const blackWordList = [wordList[0]]
     const redWordList = wordList.slice(1, 6 + addRed)
     const blueWordList = wordList.slice(7, 12 + addBlue)
-
-    console.log(redWordList)
+    wordList.sort(() => Math.random() - 0.5)
 
     return await Rooms.findOneAndUpdate({
       channel_id,
@@ -106,7 +104,9 @@ module.exports = function(io) {
       blackWordList,
       redWordList,
       blueWordList,
-      wordList: wordList.sort(() => Math.random() - 0.5),
+      wordList,
+    }, {
+      new: true,
     })
 
   }
